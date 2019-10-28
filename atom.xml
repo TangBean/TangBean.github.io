@@ -1,0 +1,487 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Tang_Bean's Blog]]></title>
+  <link href="http://tangbean.github.io/atom.xml" rel="self"/>
+  <link href="http://tangbean.github.io/"/>
+  <updated>2019-10-28T23:17:57+08:00</updated>
+  <id>http://tangbean.github.io/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://www.coderforart.com/">CoderForArt</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[内存操作 API]]></title>
+    <link href="http://tangbean.github.io/15717881343658.html"/>
+    <updated>2019-10-23T07:48:54+08:00</updated>
+    <id>http://tangbean.github.io/15717881343658.html</id>
+    <content type="html"><![CDATA[
+<p>本章的目的是告诉我们如何<strong>分配</strong>和<strong>管理</strong>内存，也就是说，我们调用什么函数才能<strong>申请</strong>和<strong>释放</strong>内存。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>随便写点</p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[内存]]></title>
+    <link href="http://tangbean.github.io/15717524549176.html"/>
+    <updated>2019-10-22T21:54:14+08:00</updated>
+    <id>http://tangbean.github.io/15717524549176.html</id>
+    <content type="html"><![CDATA[
+<span id="more"></span><!-- more -->
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[受限直接运行]]></title>
+    <link href="http://tangbean.github.io/15713186603774.html"/>
+    <updated>2019-10-17T21:24:20+08:00</updated>
+    <id>http://tangbean.github.io/15713186603774.html</id>
+    <content type="html"><![CDATA[
+<p>LDE (Limited Direct Executeion)，逐字翻译过来就是：受限的直接运行，根本不懂啥意思……</p>
+
+<span id="more"></span><!-- more -->
+
+<p>通过时分共享 CPU 的技术，我们已经有了虚拟化 CPU 的基本思路，可是接下来我们会面临如下两个问题：</p>
+
+<ul>
+<li>如何在不增加系统开销的情况下实现时分共享 CPU</li>
+<li>如何既能高效的运行进程，又保持对 CPU 的控制</li>
+</ul>
+
+<p>先来考虑如何让 CPU 运行用户的程序这个问题！</p>
+
+<h2 id="toc_0">直接运行</h2>
+
+<p>最 easy 的方法就是：</p>
+
+<ol>
+<li>在进程列表里创建一个进程条目</li>
+<li>为这个进程分配一些内存</li>
+<li>将要运行的程序的代码从磁盘加载进内存</li>
+<li>找到程序的入口函数 (如 main 函数)，跳转到那里，并开始运行用户的代码</li>
+</ol>
+
+<p>这就是直接运行，也是最高效的运行方式（因为 CPU 没有机会干其他和运行这个程序不相关的事情，所以高效），不过在用户的代码运行期间，操作系统也完全丧失了对 CPU 的控制权，只能等待用户的程序执行完毕，将 CPU 的控制权还给操作系统才行。</p>
+
+<p>如果这样的话操作系统也太惨了，完全沦为用户程序的一个库了，别说还想实现什么 CPU 时分共享，进程调度之类的高级功能了。</p>
+
+<p>为此，操作系统需要能对用户的程序进行限制，这也就是 “受限直接运行” 中的 “受限” 的来源。</p>
+
+<h2 id="toc_1">如何执行受限这个操作</h2>
+
+<p><strong>我们的目标：</strong>一个进程需要能搞执行 I/O 或其他一些受限制的操作，但又不能让该进程完全控制系统。</p>
+
+<p><strong>解决方法：</strong>委派，即受保护的控制权转移。 <br/>
+硬件为操作系统提供了两种执行模式：</p>
+
+<ul>
+<li><strong>内核模式：</strong>该模式下运行的代码可以为所欲为，执行各种诸如 I/O 请求等的特权操作</li>
+<li><strong>用户模式：</strong>该模式下运行的代码不能完全访问硬件资源，如不能发出 I/O 请求，如果发出了就会导致处理区引发异常</li>
+</ul>
+
+<p>正如其名，用户的代码当然是运行在用户模式的啦，那如果当用户代码想要做一些高级的骚操作，如从磁盘读取数据，此时它自己显然是干不了的，它只能委派内核模式帮它完成这个操作！</p>
+
+<p><strong>那么如何委派？</strong>操作系统早就给用户准备好了（还记得操作系统提供的那几百个系统调用吗？），这些系统调用在执行前都会执行特殊的 <strong>trap 指令，该指令会跳入内核并将特权级别升级为内核模式</strong>，此时，就可以执行任何特权操作了，不过控制权也从用户那回归到了操作系统手中，操作系统会接受（如果该操作被允许的话）用户的委派，执行响应的操作，并在操作完成之后通过一个特殊的 <strong>return-from-trap 指令，返回到发起调用的用户程序中</strong>，并将特权级别复原，回归用户模式。</p>
+
+<p>也就是说，用户的程序想干什么高级的事情都不能自己直接撸起袖子就干，而是必须通过委派操作系统本身代为完成。</p>
+
+<p>当然，操作系统允许用户干的事情当然是有限的啦，内核会在启动时设置 trap table，这个 table 会告诉硬件在发送某些异常事件或是系统调用时应该运行哪些代码。</p>
+
+<p>也就是说，每次陷入内核模式时，CPU 正在运行的程序都会发生改变，这就涉及到了一次上下文切换，所以有一个叫做内核栈的东西，在进入内核和离开内核时，寄存器（通用寄存器和程序计数器）会通过这个栈被保存或者恢复。</p>
+
+<h2 id="toc_2">操作系统如何重获 CPU 的控制权</h2>
+
+<p>有两种方式：</p>
+
+<ul>
+<li>操作系统被动获取：<strong>等待系统调用</strong>
+<ul>
+<li>假设：系统进程会合理运行，即运行时间过长的进程会定期放弃 CPU</li>
+<li>操作系统通过等待系统调用，或某种非法的操作发生，将 CPU 的控制权转移给 CPU</li>
+</ul></li>
+<li>操作系统主动获取：<strong>通过周期性的时钟中断</strong>
+<ul>
+<li>时钟设备通过编程每隔几毫秒产生一次中断，产生中断时，当前正在运行的进程停止，操作系统中月线配置的中断处理程序运行，此时，操作系统重获 CPU 控制权</li>
+</ul></li>
+</ul>
+
+<blockquote>
+<p><strong>Notes:</strong></p>
+
+<ul>
+<li><strong>重新启动</strong>很有用，因为它让软件回到已知的状态。</li>
+<li><strong>上下文切换：</strong>为当前正在执行的进程保存一些寄存器的值（到它的内核栈），并为即将执行的进程（从它的内核栈）恢复一些寄存器的值</li>
+</ul>
+</blockquote>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[进程调度]]></title>
+    <link href="http://tangbean.github.io/15711461893595.html"/>
+    <updated>2019-10-15T21:29:49+08:00</updated>
+    <id>http://tangbean.github.io/15711461893595.html</id>
+    <content type="html"><![CDATA[
+<p>在本篇文章中，我们的目标是找个好的进程调度算法，很明显了，是个优化问题，so，我们的第一步不是去研究进程调度算法，而是先定义一下这个好，也就是进程调度的性能指标。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">调度性能指标</h2>
+
+<ul>
+<li>周转时间 = 完成时间 - 到达时间</li>
+<li>响应时间 = 首次运行时间 - 到达时间</li>
+</ul>
+
+<h2 id="toc_1">简单的调度</h2>
+
+<ul>
+<li><strong>First In First Out (FIFO)</strong>
+<ul>
+<li>按照任务到达的时间依次执行，一个任务执行完了再执行下一个</li>
+<li>如果先执行了一个先到达的长耗时任务，会导致后到达的短耗时任务的周转时间变长，增加系统的平均周转时间</li>
+</ul></li>
+<li><strong>Shortest Job First (SJF)</strong>
+<ul>
+<li>对于<strong>同时</strong>到达的任务，先执行耗时短的任务</li>
+<li>不过如果短耗时任务就比长耗时任务晚到了一点点，SJF 其实和 FIFO 没啥区别……</li>
+</ul></li>
+<li><strong>Shortest Time-to-Completion First (STCF)</strong>
+<ul>
+<li>重点在于允许抢占！先执行会更早完成的任务</li>
+<li>假设现在 CPU 正在执行一个长耗时任务 A，这时候有一个短耗时任务 B 到达了，操作系统会比较一下 A 和 B 的完成时间，它发现 B 会先于 A 完成，此时 B 会抢占 A 已经拥有的 CPU 资源</li>
+</ul></li>
+<li><strong>Round-Robin (RR)</strong>
+<ul>
+<li>在一个时间片内运行一个任务，然后切换到运行队列中的下一个任务，而非运行一个任务直至结束，相当于将所有任务都切成等长的小段，然后多个任务轮流执行，每次执行一小段，直至所有任务执行完毕</li>
+<li>由于要在多个任务之间进行切换，所以存在上下文切换的时间损耗</li>
+</ul></li>
+</ul>
+
+<p><strong>优化响应时间：</strong>RR（会牺牲一部分周转时间）<br/>
+<strong>优化周转时间：</strong>STCF</p>
+
+<p>不过，以上所有调度方法操作系统都是需要已知每个任务的耗时的，这在现实中显然是不可能，因此我们需要一种可以根据历史预测每个任务的执行时间的算法，也就是我们接下来要讲的：<strong>多级反馈队列</strong>。</p>
+
+<h2 id="toc_2">多级反馈队列</h2>
+
+<p>Multi-Level Feedback Queue (MLFQ)，它实现了一种可以通过历史经验预测预测未来的机制。</p>
+
+<h3 id="toc_3">构成</h3>
+
+<ul>
+<li>由许多独立队列组成，不同队列的任务优先级不同，同一队列的任务优先级相同</li>
+<li>MLFQ 会先执行优先级高的任务，优先级相同的任务轮转执行</li>
+<li>一个任务不是一直呆在一个队列中的，它会 follow 某种规则，在这些队列中游走</li>
+</ul>
+
+<h3 id="toc_4">规则</h3>
+
+<ul>
+<li><strong>规则 1:</strong> 如果 A 的优先级 &gt; B 的优先级，运行 A</li>
+<li><strong>规则 2:</strong> 如果 A 的优先级 = B 的优先级，轮转运行 A 和 B</li>
+<li><strong>规则 3:</strong> 新任务进入系统，放在优先级最高的队列</li>
+<li><strong>规则 4:</strong> 一旦任务用完了它在某一层队列的时间配额（无论它中间主动放弃了多少次 CPU），就降低其优先级</li>
+<li><strong>规则 5:</strong> 经过一段时间 S，将系统中所有任务重新加入最高优先级队列</li>
+</ul>
+
+<p>基于以上 5 条规则，一个任务进入系统后运行流程如下：</p>
+
+<ul>
+<li>先被放入优先级最高的队列，执行一个时间片，分为以下两种情况：</li>
+<li>执行了一个完整的时间片：该任务被移入优先级低一级的队列中</li>
+<li>一个时间片的时间还没用完就进行了 I/O 操作：检查以下这个任务在当前时间片的运行总时间，如果：
+<ul>
+<li>已到达该层队列的时间配额，移入优先级低一级的队列</li>
+<li>未到达该层队列的时间配额，继续留在当前队列，等待后续再次被轮转调度</li>
+</ul></li>
+</ul>
+
+<p><strong>MLFQ 是如何预测一个任务的完成时间的？</strong></p>
+
+<p>通过以上流程，我们已经可以回答这个问题了，我们假设每个新到达的任务都是一个短耗时任务，并赋予它最高的执行优先级，如果该任务的确是短耗时任务，那么它很快就会被执行完毕，否则就会被移入低优先级对列，此时，该任务也被认为是长耗时任务了。</p>
+
+<h3 id="toc_5">规则解释</h3>
+
+<p>前两条规则很好解释，就是基于 MLFQ 的构成衍生出的。</p>
+
+<p>规则 3 也比较好解释，因为一个新任务是没有历史经验的，它可能是一个短耗时任务，也可能是一个长耗时任务，此时我们假设它是一个短耗时任务。同时为了防止它是一个长耗时任务的影响，<strong>高优先级队列的时间片通常很短（如 10ms 或者更少）</strong>，这样它可以很快的被切换掉。</p>
+
+<p>规则 4 是为了防止调度程序被任务愚弄的，曾经，这条规则是这样滴：</p>
+
+<ul>
+<li><strong>规则 4a:</strong> 任务用完整个时间片后，移入优先级低一级的队列</li>
+<li><strong>规则 4b:</strong> 任务执行期间主动释放了 CPU，其优先级保持不变，继续留在当前队列，等待后续再次被轮转调度</li>
+</ul>
+
+<p>然后熊孩子出现了，熊孩子有一个 CPU 密集的任务，它算准时间，刚好在时间片用完之前调用一个 I/O 操作放弃 CPU，如此这般，该任务可以永远保持最高优先级运行直至结束，为了对付这种熊孩子，我们将判断一个任务是否应该被移入下一个优先级队列的判断依据变为了该任务在当前队列中已经运行的总时间，不管这个任务在此期间放弃了多少次 CPU，只要它大限已到，就会被移入下一个优先级队列中。</p>
+
+<p>规则 5 是为了避免饥饿问题出现的，如果系统中存在过多的交互型任务，可能会导致优先级稍低的长耗时任务永远都不会被调度，导致其被 “饿死”，解决这个问题的办法就是：周期性的提高所有任务的优先级。</p>
+
+<h2 id="toc_6">比例配额调度</h2>
+
+<p>还有一种有趣的调度方式，就是比列配额调度，不过这并不是一个适合 CPU 的调度方式。</p>
+
+<blockquote>
+<p><strong>为什么不适合 CPU 调度？</strong></p>
+
+<ol>
+<li>不好处理 I/O</li>
+<li>票数分配问题没有解决</li>
+</ol>
+</blockquote>
+
+<p>首先这种方式调度方式有以下两种分类：</p>
+
+<ul>
+<li>随机的彩票配额调度</li>
+<li>确定的步长配额调度</li>
+</ul>
+
+<h3 id="toc_7">构成</h3>
+
+<ul>
+<li>总彩票数（操作系统中的总资源数）</li>
+<li>每个进程所拥有的彩票数（该进程占有的资源份额）</li>
+</ul>
+
+<p>接下来，比例配额算法想要达到的一个效果就是：调度程序的终极目标是确保每个任务都获得一定比例的 CPU 时间，并且这个比例符合最初的预设，而不是优化周转时间或响应时间。</p>
+
+<h3 id="toc_8">实现</h3>
+
+<ul>
+<li><strong>彩票配额（随机）</strong>
+<ul>
+<li>我们需要：
+<ul>
+<li>一个不错的随机数生成器</li>
+<li>一个列表，记录每个进程拥有的彩票数</li>
+<li>彩票总数</li>
+</ul></li>
+<li>每次调度通过产生一个随机数，确定调用哪个进程</li>
+</ul></li>
+<li><strong>步长配额（确定）</strong>
+<ul>
+<li>我们需要：
+<ul>
+<li>根据任务的票数比例，确定每个任务的步长，步长和票数成反比，例如，A、B、C 三个任务的票数分别为：100、50、250，那么他们的步长可设置为：100、200、40</li>
+</ul></li>
+<li>每个任务开始的行程值都是 0，当需要进行调度时，调度行程值最小的进程，并在调度结束之后给该进程的行程值增加相应的步长</li>
+</ul></li>
+</ul>
+
+<p><strong>既然有了能精确控制比例的步长配额调度，为什么还需要彩票配额调度？</strong><br/>
+因为彩票配额调度不需要全局状态，它不需要记录每个进程的行程值，对于一个新加入系统的进程，我们应该如何设置其行程值是步长配额调度比较难解决的问题，而彩票配额调度则可以更合理的处理新加入的进程。</p>
+
+<blockquote>
+<p><strong>随机方法的相较于传统决策方式的优势：</strong> </p>
+
+<ol>
+<li>可以避免奇怪的边角</li>
+<li>更轻量</li>
+<li>决策更快</li>
+</ol>
+</blockquote>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[进程]]></title>
+    <link href="http://tangbean.github.io/15706265442103.html"/>
+    <updated>2019-10-09T21:09:04+08:00</updated>
+    <id>http://tangbean.github.io/15706265442103.html</id>
+    <content type="html"><![CDATA[
+<p>介绍进程</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">什么是进程</h2>
+
+<p>简单来说，进程就是运行中的程序。</p>
+
+<p>程序本身是没有生命周期的，它只是一些存在磁盘上的指令或者静态数据，操作系统会将这个静态的指令运行起来，让它变成一个进程。</p>
+
+<p>那么进程到底是什么呢？我们知道，进程本质上是一个动态的东西，所以我们可以将重点放在：<strong>程序在运行时可以读取什么？可以更新什么？即进程的机器状态。</strong></p>
+
+<h3 id="toc_1">进程的机器状态</h3>
+
+<ul>
+<li><strong>内存</strong>
+<ul>
+<li>指令在内存中，运行中的程序读取和写入的数据也在内存中（注：进程可以访问的内存称为地址空间）</li>
+</ul></li>
+<li><strong>寄存器</strong>
+<ul>
+<li>许多指令会明确的读取或更新寄存器</li>
+<li>还有一些特殊的寄存器，如程序计数器 (PC) 会指向程序正在执行的指令</li>
+</ul></li>
+</ul>
+
+<h2 id="toc_2">进程创建（程序如何变成进程）</h2>
+
+<p>分为两个阶段：</p>
+
+<ul>
+<li><strong>创建进程前的准备工作：</strong>
+<ul>
+<li>将代码和静态数据 (如初始化变量等) 加载进内存
+<ul>
+<li>早期操作系统的这一操作是尽早完成的，现代操作系统则采用了惰性加载，即仅加载在程序执行期间需要的代码和数据片段</li>
+</ul></li>
+<li>为程序的运行时栈分配内存
+<ul>
+<li>会存放局部变量、函数参数和返回地址等</li>
+</ul></li>
+<li>为程序的堆分配内存
+<ul>
+<li>起初分配给堆的内存可能比较小，不过随着程序的运行，如通过 <code>malloc()</code> 请求内存，操作系统会给堆分配更多的内存</li>
+</ul></li>
+<li>执行与 I/O 设置相关的工作
+<ul>
+<li>如 UNIX 系统中，默认情况下每个进程都有 3 个打开的文件描述符，用于标准输入、输出和错误</li>
+</ul></li>
+</ul></li>
+<li><strong>启动进程：</strong>
+<ul>
+<li>跳转到 <code>main()</code> 函数，OS 将 CPU 的控制权转移到新创建的进程中，程序开始执行</li>
+</ul></li>
+</ul>
+
+<h2 id="toc_3">进程状态</h2>
+
+<p><img src="media/15706265442103/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E5%AF%BC%E8%AE%BA-%E8%BF%9B%E7%A8%8B%E7%8A%B6%E6%80%81%E8%BD%AC%E7%A7%BB.png" alt="操作系统导论-进程状态转移"/></p>
+
+<h2 id="toc_4">进程运行</h2>
+
+<p>一个 CPU 在同一时刻只能运行一个进程，但为了让多个进程看起来像是一起运行的，操作系统采用了<strong>时分共享 CPU 技术</strong>，即让一个进程只运行一个时间片，然后切换到其他进程，营造出一种操作系统有多个 CPU 的假象。</p>
+
+<p>切换进程就涉及到了上下文切换的问题。</p>
+
+<h3 id="toc_5">上下文切换</h3>
+
+<ul>
+<li>当一个进程停止时，此时寄存器中的值会被保存到内存中</li>
+<li>当需要恢复这个进程时，会从内存中取出这些寄存器原来的值，再次把它们放回到实际的物理寄存器中去，操作系统即可恢复运行该进程</li>
+</ul>
+
+<h2 id="toc_6">进程的数据结构</h2>
+
+<p>其实操作系统本身就是一个程序，因此它也和其他程序一样，需要一些合适的数据结构跟踪各种相关信息。对于进程，<strong>操作系统中有一个叫做进程列表的东西，操作系统通过这个列表跟踪系统中所有正在运行的程序</strong>，所有能同时运行多个进程的操作系统都需要一个这样的数据结构。</p>
+
+<blockquote>
+<p>人们将存储关于进程信息的数据结构称为进程控制块 (Process Control Block, PCB)。</p>
+</blockquote>
+
+<h2 id="toc_7">进程 API</h2>
+
+<ul>
+<li>创建 (create)</li>
+<li>销毁 (destroy)</li>
+<li>等待 (wait)</li>
+<li>其他控制 (miscellaneous control)</li>
+<li>状态 (status)</li>
+</ul>
+
+<h3 id="toc_8">创建新进程</h3>
+
+<h4 id="toc_9">三个无敌重要的系统调用</h4>
+
+<ul>
+<li><code>fork()</code>
+<ul>
+<li>用于创建新进程，其实就是复制自己</li>
+<li>返回新创建的子进程的 PID，新创建的子进程由于没有子进程，会返回 0，返回负值说明调用失败</li>
+</ul></li>
+<li><code>wait()</code> or <code>waitpid</code>
+<ul>
+<li>父进程等待子进程结束再继续执行</li>
+</ul></li>
+<li><code>exec()</code>
+<ul>
+<li>给定可执行程序名和参数，可以让子进程执行与父进程不同的程序</li>
+<li><code>exec()</code> 会从给定的可执行程序中重新加载代码和静态数据，用它覆盖自己的代码和静态数据，重新初始化堆、栈等内存空间，然后运行该程序</li>
+<li><code>exec()</code> 不会创建新的进程，而是会将当前正在执行的程序替换掉，让当前进程去执行一个新的程序，就像前面被替换掉的进程从未执行过一样，因此 <code>exec()</code> 的成功调用永远不会有返回 (以前运行的程序都没了，谁去接收返回值的结果呀……)</li>
+</ul></li>
+</ul>
+
+<blockquote>
+<p><strong><code>fork()</code> 和 <code>exec()</code> 的区别：</strong></p>
+
+<ul>
+<li>执行完 <code>fork()</code> 后，系统中会出现一个新的进程，<code>exec()</code> 则不会</li>
+<li><code>fork()</code> 有返回值，<code>exec()</code> 没有</li>
+</ul>
+</blockquote>
+
+<p>fork 调用的示例：</p>
+
+<pre><code class="language-python">import os
+
+def main():
+    x = 0
+    res = os.fork()
+    if res &lt; 0:
+        print(&#39;Something wrong&#39;)
+    elif res == 0:
+        x = 1
+        print(x, os.getpid())
+    else:
+        x = 2
+        print(x, os.getpid())
+
+if __name__ == &#39;__main__&#39;:
+    main()
+    
+&quot;&quot;&quot;
+输出：
+2 41541
+1 41542
+&quot;&quot;&quot;
+</code></pre>
+
+<h4 id="toc_10">shell 执行一个命令的过程</h4>
+
+<p>组合调用 <code>fork()</code> 和 <code>exec()</code>：</p>
+
+<ul>
+<li>调用 <code>fork()</code> 创建新进程</li>
+<li>调用 <code>exec()</code> 的某个变体执行这个可执行程序</li>
+<li>调用 <code>wait()</code> 等待该命令执行完成</li>
+<li>子程序执行完毕后，shell 进程从 <code>wait()</code> 返回，并 print 一个命令提示符，如 <code>&gt;prompt</code></li>
+</ul>
+
+<p>将 fork 和 exec 调用分离，shell 可以在 fork 执行后，exec 执行前，运行一些其他的代码，如在新程序运行前改变环境等，shell 实现结果重定向就是依靠了这个设计。</p>
+
+<h4 id="toc_11">shell 实现结果重定向</h4>
+
+<p>比如执行命令：<code>wc p3.c &gt; newfile.txt</code>。</p>
+
+<p>在 fork 执行后，exec 执行前，shell 会关闭标准输出，然后打开 newfile.txt 文件流，在打开文件流时，操作系统会从 0 开始寻找可用的文件描述符，此时由于标准输出流已经被关闭了，所以 STDOUT_FILENO 将成为第一个可用的文件描述符，之后所有的 printf 等就会被写入到 newfile.txt 中去。</p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[操作系统简介]]></title>
+    <link href="http://tangbean.github.io/15705455453200.html"/>
+    <updated>2019-10-08T22:39:05+08:00</updated>
+    <id>http://tangbean.github.io/15705455453200.html</id>
+    <content type="html"><![CDATA[
+<p>仅仅将物理资源虚拟化还是不够的，虚拟化只是将资源打包成一个方便使用的状态，怎么去操作它们还需要另外一套机制，操作系统提供了一套 API，这套 API 中有几百个系统调用 (system call)，它们是提供给应用程序操作这些被打包好的资源的，这套 API 就是标准库。</p>
+
+<span id="more"></span><!-- more -->
+
+]]></content>
+  </entry>
+  
+</feed>
