@@ -4,7 +4,7 @@
   <title><![CDATA[Tang_Bean's Blog]]></title>
   <link href="http://tangbean.github.io/atom.xml" rel="self"/>
   <link href="http://tangbean.github.io/"/>
-  <updated>2019-10-29T07:35:52+08:00</updated>
+  <updated>2019-10-29T08:01:57+08:00</updated>
   <id>http://tangbean.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -12,6 +12,142 @@
   </author>
   <generator uri="http://www.coderforart.com/">CoderForArt</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[CONTEXT]]></title>
+    <link href="http://tangbean.github.io/15723065293344.html"/>
+    <updated>2019-10-29T07:48:49+08:00</updated>
+    <id>http://tangbean.github.io/15723065293344.html</id>
+    <content type="html"><![CDATA[
+<ul>
+<li><a href="15705455453200.html">操作系统简介</a></li>
+<li><strong>CPU 虚拟化</strong>
+<ul>
+<li><a href="15706265442103.html">进程</a></li>
+<li><a href="15713186603774.html">受限直接运行</a></li>
+<li><a href="15711461893595.html">进程调度</a></li>
+</ul></li>
+<li><strong>内存虚拟化</strong>
+<ul>
+<li><a href="15717524549176.html">内存</a></li>
+<li><a href="15717881343658.html">内存操作 API</a></li>
+</ul></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[内存操作 API]]></title>
+    <link href="http://tangbean.github.io/15717881343658.html"/>
+    <updated>2019-10-23T07:48:54+08:00</updated>
+    <id>http://tangbean.github.io/15717881343658.html</id>
+    <content type="html"><![CDATA[
+<p>本章的目的是告诉我们如何<strong>分配</strong>和<strong>管理</strong>内存，也就是说，我们调用什么函数才能<strong>申请</strong>和<strong>释放</strong>内存。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>随便写点</p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[内存]]></title>
+    <link href="http://tangbean.github.io/15717524549176.html"/>
+    <updated>2019-10-22T21:54:14+08:00</updated>
+    <id>http://tangbean.github.io/15717524549176.html</id>
+    <content type="html"><![CDATA[
+<span id="more"></span><!-- more -->
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[受限直接运行]]></title>
+    <link href="http://tangbean.github.io/15713186603774.html"/>
+    <updated>2019-10-17T21:24:20+08:00</updated>
+    <id>http://tangbean.github.io/15713186603774.html</id>
+    <content type="html"><![CDATA[
+<p>LDE (Limited Direct Executeion)，逐字翻译过来就是：受限的直接运行，根本不懂啥意思……</p>
+
+<span id="more"></span><!-- more -->
+
+<p>通过时分共享 CPU 的技术，我们已经有了虚拟化 CPU 的基本思路，可是接下来我们会面临如下两个问题：</p>
+
+<ul>
+<li>如何在不增加系统开销的情况下实现时分共享 CPU</li>
+<li>如何既能高效的运行进程，又保持对 CPU 的控制</li>
+</ul>
+
+<p>先来考虑如何让 CPU 运行用户的程序这个问题！</p>
+
+<h2 id="toc_0">直接运行</h2>
+
+<p>最 easy 的方法就是：</p>
+
+<ol>
+<li>在进程列表里创建一个进程条目</li>
+<li>为这个进程分配一些内存</li>
+<li>将要运行的程序的代码从磁盘加载进内存</li>
+<li>找到程序的入口函数 (如 main 函数)，跳转到那里，并开始运行用户的代码</li>
+</ol>
+
+<p>这就是直接运行，也是最高效的运行方式（因为 CPU 没有机会干其他和运行这个程序不相关的事情，所以高效），不过在用户的代码运行期间，操作系统也完全丧失了对 CPU 的控制权，只能等待用户的程序执行完毕，将 CPU 的控制权还给操作系统才行。</p>
+
+<p>如果这样的话操作系统也太惨了，完全沦为用户程序的一个库了，别说还想实现什么 CPU 时分共享，进程调度之类的高级功能了。</p>
+
+<p>为此，操作系统需要能对用户的程序进行限制，这也就是 “受限直接运行” 中的 “受限” 的来源。</p>
+
+<h2 id="toc_1">如何执行受限这个操作</h2>
+
+<p><strong>我们的目标：</strong>一个进程需要能搞执行 I/O 或其他一些受限制的操作，但又不能让该进程完全控制系统。</p>
+
+<p><strong>解决方法：</strong>委派，即受保护的控制权转移。 <br/>
+硬件为操作系统提供了两种执行模式：</p>
+
+<ul>
+<li><strong>内核模式：</strong>该模式下运行的代码可以为所欲为，执行各种诸如 I/O 请求等的特权操作</li>
+<li><strong>用户模式：</strong>该模式下运行的代码不能完全访问硬件资源，如不能发出 I/O 请求，如果发出了就会导致处理区引发异常</li>
+</ul>
+
+<p>正如其名，用户的代码当然是运行在用户模式的啦，那如果当用户代码想要做一些高级的骚操作，如从磁盘读取数据，此时它自己显然是干不了的，它只能委派内核模式帮它完成这个操作！</p>
+
+<p><strong>那么如何委派？</strong>操作系统早就给用户准备好了（还记得操作系统提供的那几百个系统调用吗？），这些系统调用在执行前都会执行特殊的 <strong>trap 指令，该指令会跳入内核并将特权级别升级为内核模式</strong>，此时，就可以执行任何特权操作了，不过控制权也从用户那回归到了操作系统手中，操作系统会接受（如果该操作被允许的话）用户的委派，执行响应的操作，并在操作完成之后通过一个特殊的 <strong>return-from-trap 指令，返回到发起调用的用户程序中</strong>，并将特权级别复原，回归用户模式。</p>
+
+<p>也就是说，用户的程序想干什么高级的事情都不能自己直接撸起袖子就干，而是必须通过委派操作系统本身代为完成。</p>
+
+<p>当然，操作系统允许用户干的事情当然是有限的啦，内核会在启动时设置 trap table，这个 table 会告诉硬件在发送某些异常事件或是系统调用时应该运行哪些代码。</p>
+
+<p>也就是说，每次陷入内核模式时，CPU 正在运行的程序都会发生改变，这就涉及到了一次上下文切换，所以有一个叫做内核栈的东西，在进入内核和离开内核时，寄存器（通用寄存器和程序计数器）会通过这个栈被保存或者恢复。</p>
+
+<h2 id="toc_2">操作系统如何重获 CPU 的控制权</h2>
+
+<p>有两种方式：</p>
+
+<ul>
+<li>操作系统被动获取：<strong>等待系统调用</strong>
+<ul>
+<li>假设：系统进程会合理运行，即运行时间过长的进程会定期放弃 CPU</li>
+<li>操作系统通过等待系统调用，或某种非法的操作发生，将 CPU 的控制权转移给 CPU</li>
+</ul></li>
+<li>操作系统主动获取：<strong>通过周期性的时钟中断</strong>
+<ul>
+<li>时钟设备通过编程每隔几毫秒产生一次中断，产生中断时，当前正在运行的进程停止，操作系统中月线配置的中断处理程序运行，此时，操作系统重获 CPU 控制权</li>
+</ul></li>
+</ul>
+
+<blockquote>
+<p><strong>Notes:</strong></p>
+
+<ul>
+<li><strong>重新启动</strong>很有用，因为它让软件回到已知的状态。</li>
+<li><strong>上下文切换：</strong>为当前正在执行的进程保存一些寄存器的值（到它的内核栈），并为即将执行的进程（从它的内核栈）恢复一些寄存器的值</li>
+</ul>
+</blockquote>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[进程调度]]></title>
@@ -367,118 +503,6 @@ if __name__ == &#39;__main__&#39;:
     <content type="html"><![CDATA[
 <p>仅仅将物理资源虚拟化还是不够的，虚拟化只是将资源打包成一个方便使用的状态，怎么去操作它们还需要另外一套机制，操作系统提供了一套 API，这套 API 中有几百个系统调用 (system call)，它们是提供给应用程序操作这些被打包好的资源的，这套 API 就是标准库。</p>
 
-<span id="more"></span><!-- more -->
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[受限直接运行]]></title>
-    <link href="http://tangbean.github.io/15713186603774.html"/>
-    <updated>2019-10-17T21:24:20+08:00</updated>
-    <id>http://tangbean.github.io/15713186603774.html</id>
-    <content type="html"><![CDATA[
-<p>LDE (Limited Direct Executeion)，逐字翻译过来就是：受限的直接运行，根本不懂啥意思……</p>
-
-<span id="more"></span><!-- more -->
-
-<p>通过时分共享 CPU 的技术，我们已经有了虚拟化 CPU 的基本思路，可是接下来我们会面临如下两个问题：</p>
-
-<ul>
-<li>如何在不增加系统开销的情况下实现时分共享 CPU</li>
-<li>如何既能高效的运行进程，又保持对 CPU 的控制</li>
-</ul>
-
-<p>先来考虑如何让 CPU 运行用户的程序这个问题！</p>
-
-<h2 id="toc_0">直接运行</h2>
-
-<p>最 easy 的方法就是：</p>
-
-<ol>
-<li>在进程列表里创建一个进程条目</li>
-<li>为这个进程分配一些内存</li>
-<li>将要运行的程序的代码从磁盘加载进内存</li>
-<li>找到程序的入口函数 (如 main 函数)，跳转到那里，并开始运行用户的代码</li>
-</ol>
-
-<p>这就是直接运行，也是最高效的运行方式（因为 CPU 没有机会干其他和运行这个程序不相关的事情，所以高效），不过在用户的代码运行期间，操作系统也完全丧失了对 CPU 的控制权，只能等待用户的程序执行完毕，将 CPU 的控制权还给操作系统才行。</p>
-
-<p>如果这样的话操作系统也太惨了，完全沦为用户程序的一个库了，别说还想实现什么 CPU 时分共享，进程调度之类的高级功能了。</p>
-
-<p>为此，操作系统需要能对用户的程序进行限制，这也就是 “受限直接运行” 中的 “受限” 的来源。</p>
-
-<h2 id="toc_1">如何执行受限这个操作</h2>
-
-<p><strong>我们的目标：</strong>一个进程需要能搞执行 I/O 或其他一些受限制的操作，但又不能让该进程完全控制系统。</p>
-
-<p><strong>解决方法：</strong>委派，即受保护的控制权转移。 <br/>
-硬件为操作系统提供了两种执行模式：</p>
-
-<ul>
-<li><strong>内核模式：</strong>该模式下运行的代码可以为所欲为，执行各种诸如 I/O 请求等的特权操作</li>
-<li><strong>用户模式：</strong>该模式下运行的代码不能完全访问硬件资源，如不能发出 I/O 请求，如果发出了就会导致处理区引发异常</li>
-</ul>
-
-<p>正如其名，用户的代码当然是运行在用户模式的啦，那如果当用户代码想要做一些高级的骚操作，如从磁盘读取数据，此时它自己显然是干不了的，它只能委派内核模式帮它完成这个操作！</p>
-
-<p><strong>那么如何委派？</strong>操作系统早就给用户准备好了（还记得操作系统提供的那几百个系统调用吗？），这些系统调用在执行前都会执行特殊的 <strong>trap 指令，该指令会跳入内核并将特权级别升级为内核模式</strong>，此时，就可以执行任何特权操作了，不过控制权也从用户那回归到了操作系统手中，操作系统会接受（如果该操作被允许的话）用户的委派，执行响应的操作，并在操作完成之后通过一个特殊的 <strong>return-from-trap 指令，返回到发起调用的用户程序中</strong>，并将特权级别复原，回归用户模式。</p>
-
-<p>也就是说，用户的程序想干什么高级的事情都不能自己直接撸起袖子就干，而是必须通过委派操作系统本身代为完成。</p>
-
-<p>当然，操作系统允许用户干的事情当然是有限的啦，内核会在启动时设置 trap table，这个 table 会告诉硬件在发送某些异常事件或是系统调用时应该运行哪些代码。</p>
-
-<p>也就是说，每次陷入内核模式时，CPU 正在运行的程序都会发生改变，这就涉及到了一次上下文切换，所以有一个叫做内核栈的东西，在进入内核和离开内核时，寄存器（通用寄存器和程序计数器）会通过这个栈被保存或者恢复。</p>
-
-<h2 id="toc_2">操作系统如何重获 CPU 的控制权</h2>
-
-<p>有两种方式：</p>
-
-<ul>
-<li>操作系统被动获取：<strong>等待系统调用</strong>
-<ul>
-<li>假设：系统进程会合理运行，即运行时间过长的进程会定期放弃 CPU</li>
-<li>操作系统通过等待系统调用，或某种非法的操作发生，将 CPU 的控制权转移给 CPU</li>
-</ul></li>
-<li>操作系统主动获取：<strong>通过周期性的时钟中断</strong>
-<ul>
-<li>时钟设备通过编程每隔几毫秒产生一次中断，产生中断时，当前正在运行的进程停止，操作系统中月线配置的中断处理程序运行，此时，操作系统重获 CPU 控制权</li>
-</ul></li>
-</ul>
-
-<blockquote>
-<p><strong>Notes:</strong></p>
-
-<ul>
-<li><strong>重新启动</strong>很有用，因为它让软件回到已知的状态。</li>
-<li><strong>上下文切换：</strong>为当前正在执行的进程保存一些寄存器的值（到它的内核栈），并为即将执行的进程（从它的内核栈）恢复一些寄存器的值</li>
-</ul>
-</blockquote>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[内存操作 API]]></title>
-    <link href="http://tangbean.github.io/15717881343658.html"/>
-    <updated>2019-10-23T07:48:54+08:00</updated>
-    <id>http://tangbean.github.io/15717881343658.html</id>
-    <content type="html"><![CDATA[
-<p>本章的目的是告诉我们如何<strong>分配</strong>和<strong>管理</strong>内存，也就是说，我们调用什么函数才能<strong>申请</strong>和<strong>释放</strong>内存。</p>
-
-<span id="more"></span><!-- more -->
-
-<p>随便写点</p>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[内存]]></title>
-    <link href="http://tangbean.github.io/15717524549176.html"/>
-    <updated>2019-10-22T21:54:14+08:00</updated>
-    <id>http://tangbean.github.io/15717524549176.html</id>
-    <content type="html"><![CDATA[
 <span id="more"></span><!-- more -->
 
 ]]></content>
