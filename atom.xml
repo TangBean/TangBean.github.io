@@ -4,7 +4,7 @@
   <title><![CDATA[Tang_Bean's Blog]]></title>
   <link href="http://tangbean.github.io/atom.xml" rel="self"/>
   <link href="http://tangbean.github.io/"/>
-  <updated>2019-10-29T20:20:35+08:00</updated>
+  <updated>2019-10-29T21:52:46+08:00</updated>
   <id>http://tangbean.github.io/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -235,6 +235,19 @@ if __name__ == &#39;__main__&#39;:
 
 <span id="more"></span><!-- more -->
 
+<ul>
+<li>
+<a href="#toc_0">直接运行</a>
+</li>
+<li>
+<a href="#toc_1">如何执行受限这个操作</a>
+</li>
+<li>
+<a href="#toc_2">操作系统如何重获 CPU 的控制权</a>
+</li>
+</ul>
+
+
 <p>通过时分共享 CPU 的技术，我们已经有了虚拟化 CPU 的基本思路，可是接下来我们会面临如下两个问题：</p>
 
 <ul>
@@ -320,6 +333,41 @@ if __name__ == &#39;__main__&#39;:
 <p>在本篇文章中，我们的目标是找个好的进程调度算法，很明显了，是个优化问题，so，我们的第一步不是去研究进程调度算法，而是先定义一下这个好，也就是进程调度的性能指标。</p>
 
 <span id="more"></span><!-- more -->
+
+<ul>
+<li>
+<a href="#toc_0">调度性能指标</a>
+</li>
+<li>
+<a href="#toc_1">简单的调度</a>
+</li>
+<li>
+<a href="#toc_2">多级反馈队列</a>
+<ul>
+<li>
+<a href="#toc_3">构成</a>
+</li>
+<li>
+<a href="#toc_4">规则</a>
+</li>
+<li>
+<a href="#toc_5">规则解释</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_6">比例配额调度</a>
+<ul>
+<li>
+<a href="#toc_7">构成</a>
+</li>
+<li>
+<a href="#toc_8">实现</a>
+</li>
+</ul>
+</li>
+</ul>
+
 
 <h2 id="toc_0">调度性能指标</h2>
 
@@ -502,7 +550,99 @@ if __name__ == &#39;__main__&#39;:
 
 <span id="more"></span><!-- more -->
 
-<p>随便写点</p>
+<ul>
+<li>
+<a href="#toc_0">内存类型</a>
+</li>
+<li>
+<a href="#toc_1">分配和释放内存</a>
+<ul>
+<li>
+<a href="#toc_2">分配：<code>malloc()</code></a>
+</li>
+<li>
+<a href="#toc_3">释放：<code>free()</code></a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#toc_4">常见错误</a>
+</li>
+</ul>
+
+
+<p><em>先来看看我们需要管理什么？</em></p>
+
+<h2 id="toc_0">内存类型</h2>
+
+<p>我们需要进行管理的内存有两种类型：</p>
+
+<ul>
+<li><strong>栈内存：</strong>编译器隐式管理，比如你在函数中 <code>int x</code>，这就给一个整形变量 x 申请了空间</li>
+<li><p><strong>堆内存：</strong>申请和释放要由程序员自己来管理（当然如果你是一个写 Java 或 Python 等有垃圾回收机制语言的程序员就不用啦~），你可以通过如下方式在堆上分配一块空间给一个整数并得到指向这块空间的指针：</p>
+<pre><code class="language-c">int *x = (int *) malloc(sizeof(int));
+</code></pre></li>
+</ul>
+
+<p><em>我们有能力进行管理的就是堆内存啦，对于内存的管理无非就是分配和释放，接下来就说明如何进行这两个操作！</em></p>
+
+<h2 id="toc_1">分配和释放内存</h2>
+
+<h3 id="toc_2">分配：<code>malloc()</code></h3>
+
+<ul>
+<li>传入参数：要申请的堆空间大小</li>
+<li>返回参数：指向新申请空间的指针</li>
+</ul>
+
+<p>函数定义：</p>
+
+<pre><code class="language-c">void *malloc(size_t size);
+</code></pre>
+
+<blockquote>
+<p>malloc 返回一个指向 void 类型的指针，这只是 C 传回地址的方式，即让程序员自己决定如何处理它，比如强制类型转换成 double 型指针之类的。</p>
+</blockquote>
+
+<p>函数使用：</p>
+
+<pre><code class="language-c">// 不要直接指定长度，要使用 sizeof 函数，这样比较优雅
+double *d = (double *) malloc(sizeof(double);
+int *x = (int *) malloc(10 * sizeof(int));
+
+// 为字符串声明空间：使用 strlen() 获取字符串长度，并 +1 为字符串结束符留出空间
+char *src = &quot;hello&quot;;
+char *dst = (char *) malloc(strlen(src) + 1);
+</code></pre>
+
+<blockquote>
+<p>malloc 和 free 都是库调用，而非系统调用，它们实际上管理的是虚拟空间中的地址，比如你将 malloc 的返回值 print 出来，你会看到一个十六进制数字，不过并不是你拿着这个地址去电脑硬件上找就能找到真实存这部分数据的地方的……，但这两个函数本身都是建立在系统调用之上的。</p>
+</blockquote>
+
+<h3 id="toc_3">释放：<code>free()</code></h3>
+
+<ul>
+<li>传入参数：一个由 <code>malloc()</code> 返回的指针</li>
+</ul>
+
+<p>函数使用：</p>
+
+<pre><code class="language-c">int *x = (int *) malloc(10 * sizeof(int));
+...
+free(x);
+</code></pre>
+
+<h2 id="toc_4">常见错误</h2>
+
+<ul>
+<li>忘记分配内存（导致 segmentation fault）</li>
+<li>没有分配足够的内存（导致 buffer overflow）</li>
+<li>忘记初始化分配的内存</li>
+<li>忘记释放内存（导致内存泄漏）</li>
+<li>在用完之前释放内存（悬挂指针）</li>
+<li>反复释放内存</li>
+<li>错误调用 free（传入 malloc 返回的指针以外的东西给 free）</li>
+</ul>
 
 ]]></content>
   </entry>
