@@ -221,7 +221,7 @@ select {
 
   .small-push-4 {
     position: relative;
-    left: 33.33333%;
+    left: 28%;
     right: auto; }
 
   .small-pull-4 {
@@ -261,7 +261,7 @@ select {
 
   .small-push-8 {
     position: relative;
-    left: 66.66667%;
+    left: 72%;
     right: auto; }
 
   .small-pull-8 {
@@ -355,7 +355,7 @@ select {
     margin-left: 25% !important; }
 
   .small-offset-4 {
-    margin-left: 33.33333% !important; }
+    margin-left: 28% !important; }
 
   .small-offset-5 {
     margin-left: 41.66667% !important; }
@@ -367,7 +367,7 @@ select {
     margin-left: 58.33333% !important; }
 
   .small-offset-8 {
-    margin-left: 66.66667% !important; }
+    margin-left: 72% !important; }
 
   .small-offset-9 {
     margin-left: 75% !important; }
@@ -464,7 +464,7 @@ select {
 
   .medium-push-4 {
     position: relative;
-    left: 33.33333%;
+    left: 28%;
     right: auto; }
 
   .medium-pull-4 {
@@ -504,7 +504,7 @@ select {
 
   .medium-push-8 {
     position: relative;
-    left: 66.66667%;
+    left: 72%;
     right: auto; }
 
   .medium-pull-8 {
@@ -598,7 +598,7 @@ select {
     margin-left: 25% !important; }
 
   .medium-offset-4 {
-    margin-left: 33.33333% !important; }
+    margin-left: 28% !important; }
 
   .medium-offset-5 {
     margin-left: 41.66667% !important; }
@@ -610,7 +610,7 @@ select {
     margin-left: 58.33333% !important; }
 
   .medium-offset-8 {
-    margin-left: 66.66667% !important; }
+    margin-left: 72% !important; }
 
   .medium-offset-9 {
     margin-left: 75% !important; }
@@ -707,7 +707,7 @@ select {
 
   .push-4 {
     position: relative;
-    left: 33.33333%;
+    left: 28%;
     right: auto; }
 
   .pull-4 {
@@ -747,7 +747,7 @@ select {
 
   .push-8 {
     position: relative;
-    left: 66.66667%;
+    left: 72%;
     right: auto; }
 
   .pull-8 {
@@ -827,7 +827,7 @@ select {
 
   .large-push-4 {
     position: relative;
-    left: 33.33333%;
+    left: 28%;
     right: auto; }
 
   .large-pull-4 {
@@ -867,7 +867,7 @@ select {
 
   .large-push-8 {
     position: relative;
-    left: 66.66667%;
+    left: 72%;
     right: auto; }
 
   .large-pull-8 {
@@ -961,7 +961,7 @@ select {
     margin-left: 25% !important; }
 
   .large-offset-4 {
-    margin-left: 33.33333% !important; }
+    margin-left: 28% !important; }
 
   .large-offset-5 {
     margin-left: 41.66667% !important; }
@@ -973,7 +973,7 @@ select {
     margin-left: 58.33333% !important; }
 
   .large-offset-8 {
-    margin-left: 66.66667% !important; }
+    margin-left: 72% !important; }
 
   .large-offset-9 {
     margin-left: 75% !important; }
@@ -1070,7 +1070,7 @@ select {
 
   .push-4 {
     position: relative;
-    left: 33.33333%;
+    left: 28%;
     right: auto; }
 
   .pull-4 {
@@ -1110,7 +1110,7 @@ select {
 
   .push-8 {
     position: relative;
-    left: 66.66667%;
+    left: 72%;
     right: auto; }
 
   .pull-8 {

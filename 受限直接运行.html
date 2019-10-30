@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>
     
-  内存操作 API - Tang_Bean's Blog
+  受限直接运行 - Tang_Bean's Blog
   
   </title>
   
@@ -100,10 +100,10 @@
       <div class="markdown-body article-wrap">
        <div class="article">
           
-          <h1>内存操作 API</h1>
+          <h1>受限直接运行</h1>
      
         <div class="read-more clearfix">
-          <span class="date">2019/10/23</span>
+          <span class="date">2019/10/17</span>
 
           <span>posted in&nbsp;</span> 
           
@@ -120,103 +120,95 @@
       </div><!-- article -->
 
       <div class="article-content">
-      <p>本章的目的是告诉我们如何<strong>分配</strong>和<strong>管理</strong>内存，也就是说，我们调用什么函数才能<strong>申请</strong>和<strong>释放</strong>内存。</p>
+      <p>LDE (Limited Direct Executeion)，逐字翻译过来就是：受限的直接运行，根本不懂啥意思……</p>
 
 <span id="more"></span><!-- more -->
 
 <ul>
 <li>
-<a href="#toc_0">内存类型</a>
+<a href="#toc_0">直接运行</a>
 </li>
 <li>
-<a href="#toc_1">分配和释放内存</a>
-<ul>
-<li>
-<a href="#toc_2">分配：<code>malloc()</code></a>
+<a href="#toc_1">如何执行受限这个操作</a>
 </li>
 <li>
-<a href="#toc_3">释放：<code>free()</code></a>
-</li>
-</ul>
-</li>
-<li>
-<a href="#toc_4">常见错误</a>
+<a href="#toc_2">操作系统如何重获 CPU 的控制权</a>
 </li>
 </ul>
 
 
-<p><em>先来看看我们需要管理什么？</em></p>
-
-<h2 id="toc_0">内存类型</h2>
-
-<p>我们需要进行管理的内存有两种类型：</p>
+<p>通过时分共享 CPU 的技术，我们已经有了虚拟化 CPU 的基本思路，可是接下来我们会面临如下两个问题：</p>
 
 <ul>
-<li><strong>栈内存：</strong>编译器隐式管理，比如你在函数中 <code>int x</code>，这就给一个整形变量 x 申请了空间</li>
-<li><p><strong>堆内存：</strong>申请和释放要由程序员自己来管理（当然如果你是一个写 Java 或 Python 等有垃圾回收机制语言的程序员就不用啦~），你可以通过如下方式在堆上分配一块空间给一个整数并得到指向这块空间的指针：</p>
-<pre><code class="language-c">int *x = (int *) malloc(sizeof(int));
-</code></pre></li>
+<li>如何在不增加系统开销的情况下实现时分共享 CPU</li>
+<li>如何既能高效的运行进程，又保持对 CPU 的控制</li>
 </ul>
 
-<p><em>我们有能力进行管理的就是堆内存啦，对于内存的管理无非就是分配和释放，接下来就说明如何进行这两个操作！</em></p>
+<p>先来考虑如何让 CPU 运行用户的程序这个问题！</p>
 
-<h2 id="toc_1">分配和释放内存</h2>
+<h2 id="toc_0">直接运行</h2>
 
-<h3 id="toc_2">分配：<code>malloc()</code></h3>
+<p>最 easy 的方法就是：</p>
+
+<ol>
+<li>在进程列表里创建一个进程条目</li>
+<li>为这个进程分配一些内存</li>
+<li>将要运行的程序的代码从磁盘加载进内存</li>
+<li>找到程序的入口函数 (如 main 函数)，跳转到那里，并开始运行用户的代码</li>
+</ol>
+
+<p>这就是直接运行，也是最高效的运行方式（因为 CPU 没有机会干其他和运行这个程序不相关的事情，所以高效），不过在用户的代码运行期间，操作系统也完全丧失了对 CPU 的控制权，只能等待用户的程序执行完毕，将 CPU 的控制权还给操作系统才行。</p>
+
+<p>如果这样的话操作系统也太惨了，完全沦为用户程序的一个库了，别说还想实现什么 CPU 时分共享，进程调度之类的高级功能了。</p>
+
+<p>为此，操作系统需要能对用户的程序进行限制，这也就是 “受限直接运行” 中的 “受限” 的来源。</p>
+
+<h2 id="toc_1">如何执行受限这个操作</h2>
+
+<p><strong>我们的目标：</strong>一个进程需要能搞执行 I/O 或其他一些受限制的操作，但又不能让该进程完全控制系统。</p>
+
+<p><strong>解决方法：</strong>委派，即受保护的控制权转移。 <br/>
+硬件为操作系统提供了两种执行模式：</p>
 
 <ul>
-<li>传入参数：要申请的堆空间大小</li>
-<li>返回参数：指向新申请空间的指针</li>
+<li><strong>内核模式：</strong>该模式下运行的代码可以为所欲为，执行各种诸如 I/O 请求等的特权操作</li>
+<li><strong>用户模式：</strong>该模式下运行的代码不能完全访问硬件资源，如不能发出 I/O 请求，如果发出了就会导致处理区引发异常</li>
 </ul>
 
-<p>函数定义：</p>
+<p>正如其名，用户的代码当然是运行在用户模式的啦，那如果当用户代码想要做一些高级的骚操作，如从磁盘读取数据，此时它自己显然是干不了的，它只能委派内核模式帮它完成这个操作！</p>
 
-<pre><code class="language-c">void *malloc(size_t size);
-</code></pre>
+<p><strong>那么如何委派？</strong>操作系统早就给用户准备好了（还记得操作系统提供的那几百个系统调用吗？），这些系统调用在执行前都会执行特殊的 <strong>trap 指令，该指令会跳入内核并将特权级别升级为内核模式</strong>，此时，就可以执行任何特权操作了，不过控制权也从用户那回归到了操作系统手中，操作系统会接受（如果该操作被允许的话）用户的委派，执行响应的操作，并在操作完成之后通过一个特殊的 <strong>return-from-trap 指令，返回到发起调用的用户程序中</strong>，并将特权级别复原，回归用户模式。</p>
+
+<p>也就是说，用户的程序想干什么高级的事情都不能自己直接撸起袖子就干，而是必须通过委派操作系统本身代为完成。</p>
+
+<p>当然，操作系统允许用户干的事情当然是有限的啦，内核会在启动时设置 trap table，这个 table 会告诉硬件在发送某些异常事件或是系统调用时应该运行哪些代码。</p>
+
+<p>也就是说，每次陷入内核模式时，CPU 正在运行的程序都会发生改变，这就涉及到了一次上下文切换，所以有一个叫做内核栈的东西，在进入内核和离开内核时，寄存器（通用寄存器和程序计数器）会通过这个栈被保存或者恢复。</p>
+
+<h2 id="toc_2">操作系统如何重获 CPU 的控制权</h2>
+
+<p>有两种方式：</p>
+
+<ul>
+<li>操作系统被动获取：<strong>等待系统调用</strong>
+<ul>
+<li>假设：系统进程会合理运行，即运行时间过长的进程会定期放弃 CPU</li>
+<li>操作系统通过等待系统调用，或某种非法的操作发生，将 CPU 的控制权转移给 CPU</li>
+</ul></li>
+<li>操作系统主动获取：<strong>通过周期性的时钟中断</strong>
+<ul>
+<li>时钟设备通过编程每隔几毫秒产生一次中断，产生中断时，当前正在运行的进程停止，操作系统中月线配置的中断处理程序运行，此时，操作系统重获 CPU 控制权</li>
+</ul></li>
+</ul>
 
 <blockquote>
-<p>malloc 返回一个指向 void 类型的指针，这只是 C 传回地址的方式，即让程序员自己决定如何处理它，比如强制类型转换成 double 型指针之类的。</p>
-</blockquote>
-
-<p>函数使用：</p>
-
-<pre><code class="language-c">// 不要直接指定长度，要使用 sizeof 函数，这样比较优雅
-double *d = (double *) malloc(sizeof(double);
-int *x = (int *) malloc(10 * sizeof(int));
-
-// 为字符串声明空间：使用 strlen() 获取字符串长度，并 +1 为字符串结束符留出空间
-char *src = &quot;hello&quot;;
-char *dst = (char *) malloc(strlen(src) + 1);
-</code></pre>
-
-<blockquote>
-<p>malloc 和 free 都是库调用，而非系统调用，它们实际上管理的是虚拟空间中的地址，比如你将 malloc 的返回值 print 出来，你会看到一个十六进制数字，不过并不是你拿着这个地址去电脑硬件上找就能找到真实存这部分数据的地方的……，但这两个函数本身都是建立在系统调用之上的。</p>
-</blockquote>
-
-<h3 id="toc_3">释放：<code>free()</code></h3>
+<p><strong>Notes:</strong></p>
 
 <ul>
-<li>传入参数：一个由 <code>malloc()</code> 返回的指针</li>
+<li><strong>重新启动</strong>很有用，因为它让软件回到已知的状态。</li>
+<li><strong>上下文切换：</strong>为当前正在执行的进程保存一些寄存器的值（到它的内核栈），并为即将执行的进程（从它的内核栈）恢复一些寄存器的值</li>
 </ul>
-
-<p>函数使用：</p>
-
-<pre><code class="language-c">int *x = (int *) malloc(10 * sizeof(int));
-...
-free(x);
-</code></pre>
-
-<h2 id="toc_4">常见错误</h2>
-
-<ul>
-<li>忘记分配内存（导致 segmentation fault）</li>
-<li>没有分配足够的内存（导致 buffer overflow）</li>
-<li>忘记初始化分配的内存</li>
-<li>忘记释放内存（导致内存泄漏）</li>
-<li>在用完之前释放内存（悬挂指针）</li>
-<li>反复释放内存</li>
-<li>错误调用 free（传入 malloc 返回的指针以外的东西给 free）</li>
-</ul>
+</blockquote>
 
 
     
@@ -227,13 +219,16 @@ free(x);
         <div class="large-6 columns">
         <p class="text-left" style="padding:15px 0px;">
       
-          <a href="15717524549176.html" 
-          title="Previous Post: 内存">&laquo; 内存</a>
+          <a href="%E8%BF%9B%E7%A8%8B.html" 
+          title="Previous Post: 进程">&laquo; 进程</a>
       
         </p>
         </div>
         <div class="large-6 columns">
       <p class="text-right" style="padding:15px 0px;">
+      
+          <a  href="%E8%BF%9B%E7%A8%8B%E8%B0%83%E5%BA%A6.html" 
+          title="Next Post: 进程调度">进程调度 &raquo;</a>
       
       </p>
         </div>
@@ -258,6 +253,8 @@ free(x);
     <div id="sidebar" class="sidebar">
           <div id="site-info" class="site-info">
             
+                <div class="site-a-logo"><img src="https://avatars3.githubusercontent.com/u/10617237?s=400&u=581e9d683325d30d9fc79e3970171eb77679558e&v=4" /></div>
+            
                 <h1>Tang_Bean's Blog</h1>
                 <div class="site-des">吃饭，睡觉，打豆豆</div>
                 <div class="social">
@@ -271,7 +268,7 @@ free(x);
 
 
 <a target="_blank" class="github" target="_blank" href="https://github.com/TangBean" title="GitHub">GitHub</a>
-
+<a target="_blank" class="email" href="mailto:tang_bean@163.com" title="Email">Email</a>
   <a target="_blank" class="rss" href="atom.xml" title="RSS">RSS</a>
                 
               	 </div>
@@ -304,31 +301,31 @@ free(x);
 	      
 		      
 			      <li class="post">
-			        <a href="15723065293344.html">CONTEXT</a>
+			        <a href="%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E5%AF%BC%E8%AE%BA%E7%9B%AE%E5%BD%95.html">CONTEXT</a>
 			      </li>
 		     
 		  
 		      
 			      <li class="post">
-			        <a href="15705455453200.html">操作系统简介</a>
+			        <a href="%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E7%AE%80%E4%BB%8B.html">操作系统简介</a>
 			      </li>
 		     
 		  
 		      
 			      <li class="post">
-			        <a href="15706265442103.html">进程</a>
+			        <a href="%E8%BF%9B%E7%A8%8B.html">进程</a>
 			      </li>
 		     
 		  
 		      
 			      <li class="post">
-			        <a href="15713186603774.html">受限直接运行</a>
+			        <a href="%E5%8F%97%E9%99%90%E7%9B%B4%E6%8E%A5%E8%BF%90%E8%A1%8C.html">受限直接运行</a>
 			      </li>
 		     
 		  
 		      
 			      <li class="post">
-			        <a href="15711461893595.html">进程调度</a>
+			        <a href="%E8%BF%9B%E7%A8%8B%E8%B0%83%E5%BA%A6.html">进程调度</a>
 			      </li>
 		     
 		  
